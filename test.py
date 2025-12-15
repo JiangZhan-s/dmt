@@ -17,7 +17,11 @@ def test_one_pair(model_path, img_cur_path, img_ref_path, use_attention=True):
     else:
         print("Model checkpoint not found, using random weights for demo.")
         
-    model.eval()
+    if args.train_mode:
+        model.train()
+        print("Warning: Running in TRAIN mode (No quantization, using noise).")
+    else:
+        model.eval()
     
     # Prepare Data
     # Resize to 256x256 to match training and SPyNet requirements
@@ -87,6 +91,7 @@ if __name__ == "__main__":
     parser.add_argument("--cur", type=str, default="frame2.png")
     parser.add_argument("--ref", type=str, default="frame1.png")
     parser.add_argument("--no-attention", action="store_true", help="Use model without attention")
+    parser.add_argument("--train-mode", action="store_true", help="Run in train mode (skip quantization)")
     args = parser.parse_args()
     
     test_one_pair(args.checkpoint, args.cur, args.ref, use_attention=not args.no_attention)
