@@ -24,6 +24,7 @@ def train(args):
     
     model = VideoCompressor(use_attention=not args.no_attention).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
     
     # Use Dummy Dataset if no path provided, else use Vimeo90k
     if args.dataset is None:
@@ -80,19 +81,29 @@ def train(args):
             
             epoch_loss += loss.item()
             
+            # Calculate PSNR for monitoring
+            mse = distortion_loss.item()
+            current_psnr = 10 * math.log10(1.0 / mse) if mse > 0 else 100
+            
             if i % 10 == 0:
                 print(f"Epoch [{epoch}/{args.epochs}] Step [{i}/{len(dataloader)}] "
-                      f"Loss: {loss.item():.4f} (R: {rate_loss.item():.4f}, D: {distortion_loss.item():.4f})")
+                      f"Loss: {loss.item():.4f} (R: {rate_loss.item():.4f}, D: {distortion_loss.item():.4f}, PSNR: {current_psnr:.2f} dB)")
         
-        print(f"Epoch {epoch} complete. Avg Loss: {epoch_loss / len(dataloader):.4f}")
+        avg_loss = epoch_loss / len(dataloader)
+        print(f"Epoch {epoch} complete. Avg Loss: {avg_loss:.4f}")
+        
+        # Learning rate decay
+        scheduler.step()
         
         # Save checkpoint
         suffix = "no_attn" if args.no_attention else "attn"
-        torch.save(model.state_dict(), f"checkpoint_{suffix}_epoch_{epoch}.pth")
+        # Only save every 10 epochs or the last one to save space
+        if (epoch + 1) % 10 == 0 or (epoch + 1) == args.epochs:
+            torch.save(model.state_dict(), f"checkpoint_{suffix}_epoch_{epoch}.pth")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--dataset", type=str, help="Path to dataset")
     parser.add_argument("--no-attention", action="store_true", help="Disable CBAM attention")
     args = parser.parse_args()

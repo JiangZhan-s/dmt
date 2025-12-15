@@ -68,16 +68,22 @@ class ResidualCompressor(nn.Module):
 
     def forward(self, x):
         # Encoder
+        # Layer 1
         out = self.conv1(x)
-        if self.use_attention: out = self.cbam1(out)
+        if self.use_attention: 
+            out = self.cbam1(out) + out # Residual connection to preserve signal
         out = self.relu(out)
         
+        # Layer 2
         out = self.conv2(out)
-        if self.use_attention: out = self.cbam2(out)
+        if self.use_attention: 
+            out = self.cbam2(out) + out
         out = self.relu(out)
         
+        # Layer 3
         out = self.conv3(out)
-        if self.use_attention: out = self.cbam3(out)
+        if self.use_attention: 
+            out = self.cbam3(out) + out
         out = self.relu(out)
         
         y = self.conv4(out)
